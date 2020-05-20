@@ -12,8 +12,10 @@ using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using ILCompiler.Reflection.ReadyToRun;
+using ILCompiler.PdbWriter;
 
 using Internal.Runtime;
 
@@ -44,6 +46,9 @@ namespace R2RDump
         public bool Diff { get; set; }
         public bool DiffHideSameDisasm { get; set; }
         public bool IgnoreSensitive { get; set; }
+
+        public bool CreatePDB { get; set; }
+        public string PdbPath { get; set; }
 
         public FileInfo[] Reference { get; set; }
         public DirectoryInfo[] ReferencePath { get; set; }
@@ -215,7 +220,7 @@ namespace R2RDump
 
             if (_options.Out != null)
             {
-                _writer = new StreamWriter(_options.Out.FullName);
+                _writer = new StreamWriter(_options.Out.FullName, append: false, encoding: new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false));
             }
             else
             {
@@ -336,8 +341,9 @@ namespace R2RDump
         public void Dump(ReadyToRunReader r2r)
         {
             _dumper.Begin();
+            bool standardDump = !(_options.EntryPoints || _options.CreatePDB);
 
-            if (_options.Header || !_options.EntryPoints)
+            if (_options.Header && standardDump)
             {
                 _dumper.WriteDivider("R2R Header");
                 _dumper.DumpHeader(true);
@@ -376,13 +382,39 @@ namespace R2RDump
                     _dumper.DumpEntryPoints();
                 }
 
-                if (!_options.Header && !_options.EntryPoints)
+                if (_options.CreatePDB)
+                {
+                    string pdbPath = _options.PdbPath;
+                    if (String.IsNullOrEmpty(pdbPath))
+                    {
+                        pdbPath = Path.GetDirectoryName(r2r.Filename);
+                    }
+                    var pdbWriter = new PdbWriter(pdbPath, PDBExtraData.None);
+                    pdbWriter.WritePDBData(r2r.Filename, ProducePdbWriterMethods(r2r));
+                }
+
+                if (!_options.Header && standardDump)
                 {
                     _dumper.DumpAllMethods();
                 }
             }
 
             _dumper.End();
+        }
+
+        IEnumerable<MethodInfo> ProducePdbWriterMethods(ReadyToRunReader r2r)
+        {
+            foreach (var method in _dumper.NormalizedMethods())
+            {
+                MethodInfo mi = new MethodInfo();
+                mi.Name = method.SignatureString;
+                mi.HotRVA = (uint)method.RuntimeFunctions[0].StartAddress;
+                mi.MethodToken = (uint)MetadataTokens.GetToken(method.MetadataReader, method.MethodHandle);
+                mi.AssemblyName = method.MetadataReader.GetString(method.MetadataReader.GetAssemblyDefinition().Name);
+                mi.ColdRVA = 0;
+                
+                yield return mi;
+            }
         }
 
         /// <summary>

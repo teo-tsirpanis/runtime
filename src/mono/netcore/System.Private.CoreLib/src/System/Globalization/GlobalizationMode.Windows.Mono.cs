@@ -4,10 +4,11 @@
 
 namespace System.Globalization
 {
-	partial class GlobalizationMode
-	{
-		static bool GetGlobalizationInvariantMode () {
-			return GetInvariantSwitchValue ();
-		}
-	}
+    internal partial class GlobalizationMode
+    {
+        internal static bool Invariant { get; } = GetInvariantSwitchValue();
+        internal static bool UseNls { get; } = !Invariant &&
+            (GetSwitchValue("DOTNET_SYSTEM_GLOBALIZATION_USENLS") ||
+                Interop.Globalization.LoadICU() == 0);
+    }
 }

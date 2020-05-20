@@ -35,6 +35,13 @@
 #define SUCCEEDED(Status) ((Status) >= 0)
 #endif // !SUCCEEDED
 
+#if !HAVE_DIRENT_D_TYPE
+#define DT_UNKNOWN 0
+#define DT_DIR 4
+#define DT_REG 8
+#define DT_LNK 10
+#endif
+
 // Name of the environment variable controlling server GC.
 // If set to 1, server GC is enabled on startup. If 0, server GC is
 // disabled. Server GC is off by default.
@@ -109,6 +116,43 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
     {
         result = false;
     }
+#elif defined(__sun)
+    const char *path;
+    if ((path = getexecname()) == NULL)
+    {
+        result = false;
+    }
+    else if (*path != '/')
+    {
+        char *cwd;
+        if ((cwd = getcwd(NULL, PATH_MAX)) == NULL)
+        {
+            result = false;
+        }
+        else
+        {
+            char *joined;
+            if (asprintf(&joined, "%s/%s", cwd, path) < 0)
+            {
+                result = false;
+            }
+            else
+            {
+                entrypointExecutable.assign(joined);
+                result = true;
+                free(joined);
+            }
+
+            free(cwd);
+        }
+    }
+    else
+    {
+        entrypointExecutable.assign(path);
+        result = true;
+    }
+
+    free((void*)path);
 #else
 
 #if HAVE_GETAUXVAL && defined(AT_EXECFN)
@@ -216,8 +260,14 @@ void AddFilesFromDirectoryToTpaList(const char* directory, std::string& tpaList)
         // For all entries in the directory
         while ((entry = readdir(dir)) != nullptr)
         {
+#if HAVE_DIRENT_D_TYPE
+            int dirEntryType = entry->d_type;
+#else
+            int dirEntryType = DT_UNKNOWN;
+#endif
+
             // We are interested in files only
-            switch (entry->d_type)
+            switch (dirEntryType)
             {
             case DT_REG:
                 break;

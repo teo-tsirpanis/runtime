@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 using System.Text.Encodings.Web;
@@ -20,12 +21,15 @@ namespace System.Text.Json
 
         private readonly ConcurrentDictionary<Type, JsonClassInfo> _classes = new ConcurrentDictionary<Type, JsonClassInfo>();
 
+        // For any new option added, adding it to the options copied in the copy constructor below must be considered.
+
         private MemberAccessor? _memberAccessorStrategy;
         private JsonNamingPolicy? _dictionaryKeyPolicy;
         private JsonNamingPolicy? _jsonPropertyNamingPolicy;
         private JsonCommentHandling _readCommentHandling;
         private ReferenceHandling _referenceHandling = ReferenceHandling.Default;
         private JavaScriptEncoder? _encoder = null;
+        private JsonIgnoreCondition _defaultIgnoreCondition;
 
         private int _defaultBufferSize = BufferSizeDefault;
         private int _maxDepth;
@@ -42,6 +46,62 @@ namespace System.Text.Json
         public JsonSerializerOptions()
         {
             Converters = new ConverterList(this);
+        }
+
+        /// <summary>
+        /// Copies the options from a <see cref="JsonSerializerOptions"/> instance to a new instance.
+        /// </summary>
+        /// <param name="options">The <see cref="JsonSerializerOptions"/> instance to copy options from.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="options"/> is <see langword="null"/>.
+        /// </exception>
+        public JsonSerializerOptions(JsonSerializerOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            _memberAccessorStrategy = options._memberAccessorStrategy;
+            _dictionaryKeyPolicy = options._dictionaryKeyPolicy;
+            _jsonPropertyNamingPolicy = options._jsonPropertyNamingPolicy;
+            _readCommentHandling = options._readCommentHandling;
+            _referenceHandling = options._referenceHandling;
+            _encoder = options._encoder;
+            _defaultIgnoreCondition = options._defaultIgnoreCondition;
+
+            _defaultBufferSize = options._defaultBufferSize;
+            _maxDepth = options._maxDepth;
+            _allowTrailingCommas = options._allowTrailingCommas;
+            _ignoreNullValues = options._ignoreNullValues;
+            _ignoreReadOnlyProperties = options._ignoreReadOnlyProperties;
+            _propertyNameCaseInsensitive = options._propertyNameCaseInsensitive;
+            _writeIndented = options._writeIndented;
+
+            Converters = new ConverterList(this, (ConverterList)options.Converters);
+            EffectiveMaxDepth = options.EffectiveMaxDepth;
+
+            // _classes is not copied as sharing the JsonClassInfo and JsonPropertyInfo caches can result in
+            // unnecessary references to type metadata, potentially hindering garbage collection on the source options.
+
+            // _haveTypesBeenCreated is not copied; it's okay to make changes to this options instance as (de)serialization has not occurred.
+        }
+
+        /// <summary>
+        /// Constructs a new <see cref="JsonSerializerOptions"/> instance with a predefined set of options determined by the specified <see cref="JsonSerializerDefaults"/>.
+        /// </summary>
+        /// <param name="defaults"> The <see cref="JsonSerializerDefaults"/> to reason about.</param>
+        public JsonSerializerOptions(JsonSerializerDefaults defaults) : this()
+        {
+            if (defaults == JsonSerializerDefaults.Web)
+            {
+                _propertyNameCaseInsensitive = true;
+                _jsonPropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            }
+            else if (defaults != JsonSerializerDefaults.General)
+            {
+                throw new ArgumentOutOfRangeException(nameof(defaults));
+            }
         }
 
         /// <summary>
@@ -137,7 +197,10 @@ namespace System.Text.Json
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Thrown if this property is set after serialization or deserialization has occurred.
+        /// or <see cref="DefaultIgnoreCondition"/> has been set to a non-default value. These properties cannot be used together.
         /// </exception>
+        [Obsolete("Use DefaultIgnoreCondition instead.", error: false)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public bool IgnoreNullValues
         {
             get
@@ -147,7 +210,49 @@ namespace System.Text.Json
             set
             {
                 VerifyMutable();
+
+                if (value == true && _defaultIgnoreCondition != JsonIgnoreCondition.Never)
+                {
+                    Debug.Assert(_defaultIgnoreCondition == JsonIgnoreCondition.WhenWritingDefault);
+                    throw new InvalidOperationException(SR.DefaultIgnoreConditionAlreadySpecified);
+                }
+
                 _ignoreNullValues = value;
+            }
+        }
+
+        /// <summary>
+        /// Specifies a condition to determine when properties with default values are ignored during serialization or deserialization.
+        /// The default value is <see cref="JsonIgnoreCondition.Never" />.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// Thrown if this property is set to <see cref="JsonIgnoreCondition.Always"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if this property is set after serialization or deserialization has occurred,
+        /// or <see cref="IgnoreNullValues"/> has been set to <see langword="true"/>. These properties cannot be used together.
+        /// </exception>
+        public JsonIgnoreCondition DefaultIgnoreCondition
+        {
+            get
+            {
+                return _defaultIgnoreCondition;
+            }
+            set
+            {
+                VerifyMutable();
+
+                if (value == JsonIgnoreCondition.Always)
+                {
+                    throw new ArgumentException(SR.DefaultIgnoreConditionInvalid);
+                }
+
+                if (value != JsonIgnoreCondition.Never && _ignoreNullValues)
+                {
+                    throw new InvalidOperationException(SR.DefaultIgnoreConditionAlreadySpecified);
+                }
+
+                _defaultIgnoreCondition = value;
             }
         }
 
@@ -341,6 +446,11 @@ namespace System.Text.Json
             }
 
             return result;
+        }
+
+        internal bool TypeIsCached(Type type)
+        {
+            return _classes.ContainsKey(type);
         }
 
         internal JsonReaderOptions GetReaderOptions()

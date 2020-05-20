@@ -391,9 +391,25 @@
     "base": {
       "#import": []
     },
+    "browser": {
+      "#import": [
+        "any"
+      ]
+    },
+    "browser-wasm": {
+      "#import": [
+        "browser"
+      ]
+    },
     "centos": {
       "#import": [
         "rhel"
+      ]
+    },
+    "centos-arm64": {
+      "#import": [
+        "centos",
+        "rhel-arm64"
       ]
     },
     "centos-x64": {
@@ -421,11 +437,38 @@
         "rhel.8"
       ]
     },
+    "centos.8-arm64": {
+      "#import": [
+        "centos.8",
+        "centos-arm64",
+        "rhel.8-arm64"
+      ]
+    },
     "centos.8-x64": {
       "#import": [
         "centos.8",
         "centos-x64",
         "rhel.8-x64"
+      ]
+    },
+    "centos.9": {
+      "#import": [
+        "centos",
+        "rhel.9"
+      ]
+    },
+    "centos.9-arm64": {
+      "#import": [
+        "centos.9",
+        "centos-arm64",
+        "rhel.9-arm64"
+      ]
+    },
+    "centos.9-x64": {
+      "#import": [
+        "centos.9",
+        "centos-x64",
+        "rhel.9-x64"
       ]
     },
     "debian": {
@@ -772,6 +815,23 @@
         "fedora-x64"
       ]
     },
+    "fedora.34": {
+      "#import": [
+        "fedora"
+      ]
+    },
+    "fedora.34-arm64": {
+      "#import": [
+        "fedora.34",
+        "fedora-arm64"
+      ]
+    },
+    "fedora.34-x64": {
+      "#import": [
+        "fedora.34",
+        "fedora-x64"
+      ]
+    },
     "freebsd": {
       "#import": [
         "unix"
@@ -832,6 +892,12 @@
         "unix"
       ]
     },
+    "ios-arm": {
+      "#import": [
+        "ios",
+        "unix-arm"
+      ]
+    },
     "ios-arm64": {
       "#import": [
         "ios",
@@ -844,21 +910,56 @@
         "unix-x64"
       ]
     },
+    "ios-x86": {
+      "#import": [
+        "ios",
+        "unix-x86"
+      ]
+    },
+    "ios.10": {
+      "#import": [
+        "ios.9"
+      ]
+    },
+    "ios.10-arm": {
+      "#import": [
+        "ios.10",
+        "ios.9-arm"
+      ]
+    },
+    "ios.10-arm64": {
+      "#import": [
+        "ios.10",
+        "ios.9-arm64"
+      ]
+    },
+    "ios.10-x64": {
+      "#import": [
+        "ios.10",
+        "ios.9-x64"
+      ]
+    },
+    "ios.10-x86": {
+      "#import": [
+        "ios.10",
+        "ios.9-x86"
+      ]
+    },
     "ios.11": {
       "#import": [
-        "ios"
+        "ios.10"
       ]
     },
     "ios.11-arm64": {
       "#import": [
         "ios.11",
-        "ios-arm64"
+        "ios.10-arm64"
       ]
     },
     "ios.11-x64": {
       "#import": [
         "ios.11",
-        "ios-x64"
+        "ios.10-x64"
       ]
     },
     "ios.12": {
@@ -893,6 +994,64 @@
       "#import": [
         "ios.13",
         "ios.12-x64"
+      ]
+    },
+    "ios.8": {
+      "#import": [
+        "ios"
+      ]
+    },
+    "ios.8-arm": {
+      "#import": [
+        "ios.8",
+        "ios-arm"
+      ]
+    },
+    "ios.8-arm64": {
+      "#import": [
+        "ios.8",
+        "ios-arm64"
+      ]
+    },
+    "ios.8-x64": {
+      "#import": [
+        "ios.8",
+        "ios-x64"
+      ]
+    },
+    "ios.8-x86": {
+      "#import": [
+        "ios.8",
+        "ios-x86"
+      ]
+    },
+    "ios.9": {
+      "#import": [
+        "ios.8"
+      ]
+    },
+    "ios.9-arm": {
+      "#import": [
+        "ios.9",
+        "ios.8-arm"
+      ]
+    },
+    "ios.9-arm64": {
+      "#import": [
+        "ios.9",
+        "ios.8-arm64"
+      ]
+    },
+    "ios.9-x64": {
+      "#import": [
+        "ios.9",
+        "ios.8-x64"
+      ]
+    },
+    "ios.9-x86": {
+      "#import": [
+        "ios.9",
+        "ios.8-x86"
       ]
     },
     "linux": {
@@ -1546,6 +1705,23 @@
       "#import": [
         "rhel.8.1",
         "rhel.8.0-x64"
+      ]
+    },
+    "rhel.9": {
+      "#import": [
+        "rhel"
+      ]
+    },
+    "rhel.9-arm64": {
+      "#import": [
+        "rhel.9",
+        "rhel-arm64"
+      ]
+    },
+    "rhel.9-x64": {
+      "#import": [
+        "rhel.9",
+        "rhel-x64"
       ]
     },
     "sles": {

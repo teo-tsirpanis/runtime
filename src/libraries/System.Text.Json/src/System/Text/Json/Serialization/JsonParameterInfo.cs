@@ -22,22 +22,13 @@ namespace System.Text.Json
         // The default value of the parameter. This is `DefaultValue` of the `ParameterInfo`, if specified, or the CLR `default` for the `ParameterType`.
         public object? DefaultValue { get; protected set; }
 
-        // The name from a Json value. This is cached for performance on first deserialize.
-        public byte[]? JsonPropertyName { get; set; }
-
         // Options can be referenced here since all JsonPropertyInfos originate from a JsonClassInfo that is cached on JsonSerializerOptions.
         protected JsonSerializerOptions Options { get; set; } = null!; // initialized in Init method
 
         public ParameterInfo ParameterInfo { get; private set; } = null!;
 
         // The name of the parameter as UTF-8 bytes.
-        public byte[] ParameterName { get; private set; } = null!;
-
-        // The name of the parameter.
-        public string NameAsString { get; private set; } = null!;
-
-        // Key for fast property name lookup.
-        public ulong ParameterNameKey { get; private set; }
+        public byte[] NameAsUtf8Bytes { get; private set; } = null!;
 
         // The zero-based position of the parameter in the formal parameter list.
         public int Position { get; private set; }
@@ -59,11 +50,10 @@ namespace System.Text.Json
         public bool ShouldDeserialize { get; private set; }
 
         public virtual void Initialize(
-            string matchingPropertyName,
             Type declaredPropertyType,
             Type runtimePropertyType,
             ParameterInfo parameterInfo,
-            JsonConverter converter,
+            JsonPropertyInfo matchingProperty,
             JsonSerializerOptions options)
         {
             _runtimePropertyType = runtimePropertyType;
@@ -73,24 +63,19 @@ namespace System.Text.Json
             Position = parameterInfo.Position;
             ShouldDeserialize = true;
 
-            DetermineParameterName(matchingPropertyName);
+            DetermineParameterName(matchingProperty);
         }
 
-        private void DetermineParameterName(string matchingPropertyName)
+        private void DetermineParameterName(JsonPropertyInfo matchingProperty)
         {
-            NameAsString = matchingPropertyName;
-
-            // `NameAsString` is valid UTF16, so just call the simple UTF16->UTF8 encoder.
-            ParameterName = Encoding.UTF8.GetBytes(NameAsString);
-
-            ParameterNameKey = JsonClassInfo.GetKey(ParameterName);
+            NameAsUtf8Bytes = matchingProperty.NameAsUtf8Bytes!;
         }
 
         // Create a parameter that is ignored at run-time. It uses the same type (typeof(sbyte)) to help
         // prevent issues with unsupported types and helps ensure we don't accidently (de)serialize it.
         public static JsonParameterInfo CreateIgnoredParameterPlaceholder(
-            string matchingPropertyName,
             ParameterInfo parameterInfo,
+            JsonPropertyInfo matchingProperty,
             JsonSerializerOptions options)
         {
             JsonParameterInfo jsonParameterInfo = new JsonParameterInfo<sbyte>();
@@ -98,7 +83,7 @@ namespace System.Text.Json
             jsonParameterInfo.ParameterInfo = parameterInfo;
             jsonParameterInfo.ShouldDeserialize = false;
 
-            jsonParameterInfo.DetermineParameterName(matchingPropertyName);
+            jsonParameterInfo.DetermineParameterName(matchingProperty);
 
             return jsonParameterInfo;
         }

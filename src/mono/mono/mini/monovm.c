@@ -157,7 +157,7 @@ leave:
 static void
 install_assembly_loader_hooks (void)
 {
-	mono_install_assembly_preload_hook_v2 (mono_core_preload_hook, (void*)trusted_platform_assemblies, FALSE);
+	mono_install_assembly_preload_hook_v2 (mono_core_preload_hook, (void*)trusted_platform_assemblies, FALSE, FALSE);
 }
 
 static gboolean
@@ -181,6 +181,9 @@ parse_properties (int propertyCount, const char **propertyKeys, const char **pro
 		} else if (prop_len == 30 && !strncmp (propertyKeys [i], "System.Globalization.Invariant", 30)) {
 			// TODO: Ideally we should propagate this through AppContext options
 			g_setenv ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", propertyValues [i], TRUE);
+		} else if (prop_len == 27 && !strncmp (propertyKeys [i], "System.Globalization.UseNls", 27)) {
+			// TODO: Ideally we should propagate this through AppContext options
+			g_setenv ("DOTNET_SYSTEM_GLOBALIZATION_USENLS", propertyValues [i], TRUE);
 		} else {
 #if 0
 			// can't use mono logger, it's not initialized yet.

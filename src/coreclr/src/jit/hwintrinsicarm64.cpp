@@ -15,7 +15,7 @@
 //
 // Return Value:
 //    The 64-bit only InstructionSet associated with isa
-static InstructionSet Arm64VersionOfIsa(InstructionSet isa)
+static CORINFO_InstructionSet Arm64VersionOfIsa(CORINFO_InstructionSet isa)
 {
     switch (isa)
     {
@@ -38,7 +38,7 @@ static InstructionSet Arm64VersionOfIsa(InstructionSet isa)
 //
 // Return Value:
 //    The InstructionSet associated with className
-static InstructionSet lookupInstructionSet(const char* className)
+static CORINFO_InstructionSet lookupInstructionSet(const char* className)
 {
     assert(className != nullptr);
 
@@ -99,7 +99,7 @@ static InstructionSet lookupInstructionSet(const char* className)
 //
 // Return Value:
 //    The InstructionSet associated with className and enclosingClassName
-InstructionSet HWIntrinsicInfo::lookupIsa(const char* className, const char* enclosingClassName)
+CORINFO_InstructionSet HWIntrinsicInfo::lookupIsa(const char* className, const char* enclosingClassName)
 {
     assert(className != nullptr);
 
@@ -115,37 +115,6 @@ InstructionSet HWIntrinsicInfo::lookupIsa(const char* className, const char* enc
 }
 
 //------------------------------------------------------------------------
-// lookupImmUpperBound: Gets the upper bound for the imm-value of a given NamedIntrinsic
-//
-// Arguments:
-//    id -- The NamedIntrinsic associated with the HWIntrinsic to lookup
-//
-// Return Value:
-//     The upper bound for the imm-value of the intrinsic associated with id
-//
-int HWIntrinsicInfo::lookupImmUpperBound(NamedIntrinsic id)
-{
-    assert(HWIntrinsicInfo::HasFullRangeImm(id));
-    return 255;
-}
-
-//------------------------------------------------------------------------
-// isInImmRange: Check if ival is valid for the intrinsic
-//
-// Arguments:
-//    id   -- The NamedIntrinsic associated with the HWIntrinsic to lookup
-//    ival -- the imm value to be checked
-//
-// Return Value:
-//     true if ival is valid for the intrinsic
-//
-bool HWIntrinsicInfo::isInImmRange(NamedIntrinsic id, int ival)
-{
-    assert(HWIntrinsicInfo::lookupCategory(id) == HW_Category_IMM);
-    return ival <= lookupImmUpperBound(id) && ival >= 0;
-}
-
-//------------------------------------------------------------------------
 // isFullyImplementedIsa: Gets a value that indicates whether the InstructionSet is fully implemented
 //
 // Arguments:
@@ -153,7 +122,7 @@ bool HWIntrinsicInfo::isInImmRange(NamedIntrinsic id, int ival)
 //
 // Return Value:
 //    true if isa is supported; otherwise, false
-bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
+bool HWIntrinsicInfo::isFullyImplementedIsa(CORINFO_InstructionSet isa)
 {
     switch (isa)
     {
@@ -188,7 +157,7 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
 //
 // Return Value:
 //    true if isa is scalar; otherwise, false
-bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
+bool HWIntrinsicInfo::isScalarIsa(CORINFO_InstructionSet isa)
 {
     switch (isa)
     {
@@ -205,6 +174,69 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
             return false;
         }
     }
+}
+
+//------------------------------------------------------------------------
+// lookupImmUpperBound: Gets the upper bound for the imm-value of a given NamedIntrinsic
+//
+// Arguments:
+//    intrinsic -- NamedIntrinsic associated with the HWIntrinsic to lookup
+//    simdType  -- vector size
+//    baseType  -- base type of the Vector64/128<T>
+//
+// Return Value:
+//     The upper bound for a value of the intrinsic immediate operand
+int HWIntrinsicInfo::lookupImmUpperBound(NamedIntrinsic intrinsic, int simdSize, var_types baseType)
+{
+    assert(HWIntrinsicInfo::lookupCategory(intrinsic) == HW_Category_IMM);
+
+    int immUpperBound = 0;
+
+    if (HWIntrinsicInfo::HasFullRangeImm(intrinsic))
+    {
+        immUpperBound = 255;
+    }
+    else
+    {
+        switch (intrinsic)
+        {
+            case NI_AdvSimd_DuplicateSelectedScalarToVector64:
+            case NI_AdvSimd_DuplicateSelectedScalarToVector128:
+            case NI_AdvSimd_Extract:
+            case NI_AdvSimd_ExtractVector128:
+            case NI_AdvSimd_ExtractVector64:
+            case NI_AdvSimd_Insert:
+            case NI_AdvSimd_Arm64_DuplicateSelectedScalarToVector128:
+            case NI_Vector64_GetElement:
+            case NI_Vector128_GetElement:
+                immUpperBound = Compiler::getSIMDVectorLength(simdSize, baseType);
+                break;
+
+            default:
+                unreached();
+        }
+    }
+
+    return immUpperBound;
+}
+
+//------------------------------------------------------------------------
+// isInImmRange: Check if ival is valid for the intrinsic
+//
+// Arguments:
+//    id        -- the NamedIntrinsic associated with the HWIntrinsic to lookup
+//    ival      -- the imm value to be checked
+//    simdType  -- vector size
+//    baseType  -- base type of the Vector64/128<T>
+//
+// Return Value:
+//     true if ival is valid for the intrinsic
+//
+bool HWIntrinsicInfo::isInImmRange(NamedIntrinsic id, int ival, int simdSize, var_types baseType)
+{
+    assert(HWIntrinsicInfo::lookupCategory(id) == HW_Category_IMM);
+
+    return ival <= lookupImmUpperBound(id, simdSize, baseType) && ival >= 0;
 }
 
 //------------------------------------------------------------------------
@@ -230,7 +262,9 @@ GenTree* Compiler::impNonConstFallback(NamedIntrinsic intrinsic, var_types simdT
 //    intrinsic  -- id of the intrinsic function.
 //    clsHnd     -- class handle containing the intrinsic function.
 //    method     -- method handle of the intrinsic function.
-//    sig        -- signature of the intrinsic call
+//    sig        -- signature of the intrinsic call.
+//    baseType   -- generic argument of the intrinsic.
+//    retType    -- return type of the intrinsic.
 //
 // Return Value:
 //    The GT_HWINTRINSIC node, or nullptr if not a supported intrinsic
@@ -238,50 +272,16 @@ GenTree* Compiler::impNonConstFallback(NamedIntrinsic intrinsic, var_types simdT
 GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
                                        CORINFO_CLASS_HANDLE  clsHnd,
                                        CORINFO_METHOD_HANDLE method,
-                                       CORINFO_SIG_INFO*     sig)
+                                       CORINFO_SIG_INFO*     sig,
+                                       var_types             baseType,
+                                       var_types             retType,
+                                       unsigned              simdSize)
 {
     HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(intrinsic);
     int                 numArgs  = sig->numArgs;
-    var_types           retType  = JITtype2varType(sig->retType);
-    var_types           baseType = TYP_UNKNOWN;
 
-    if ((retType == TYP_STRUCT) && featureSIMD)
-    {
-        unsigned int sizeBytes;
-        baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeSigClass, &sizeBytes);
-        retType  = getSIMDTypeForSize(sizeBytes);
-        assert(sizeBytes != 0);
-
-        if (!varTypeIsArithmetic(baseType))
-        {
-            assert((intrinsic == NI_Vector64_AsByte) || (intrinsic == NI_Vector128_As));
-            return nullptr;
-        }
-    }
-
-    baseType = getBaseTypeFromArgIfNeeded(intrinsic, clsHnd, sig, baseType);
-
-    if (baseType == TYP_UNKNOWN)
-    {
-        if (category != HW_Category_Scalar)
-        {
-            unsigned int sizeBytes;
-            baseType = getBaseTypeAndSizeOfSIMDType(clsHnd, &sizeBytes);
-            assert(sizeBytes != 0);
-        }
-        else
-        {
-            baseType = retType;
-        }
-    }
-
-    if (!varTypeIsArithmetic(baseType))
-    {
-        return nullptr;
-    }
-
-    unsigned simdSize = HWIntrinsicInfo::lookupSimdSize(this, intrinsic, sig);
     assert(numArgs >= 0);
+    assert(varTypeIsArithmetic(baseType));
 
     GenTree* retNode = nullptr;
     GenTree* op1     = nullptr;
@@ -325,6 +325,47 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
             assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
             break;
         }
+
+        case NI_Vector64_Create:
+        case NI_Vector128_Create:
+        {
+            // We shouldn't handle this as an intrinsic if the
+            // respective ISAs have been disabled by the user.
+
+            if (!compExactlyDependsOn(InstructionSet_AdvSimd))
+            {
+                break;
+            }
+
+            if (sig->numArgs == 1)
+            {
+                op1     = impPopStack().val;
+                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
+            }
+            else if (sig->numArgs == 2)
+            {
+                op2     = impPopStack().val;
+                op1     = impPopStack().val;
+                retNode = gtNewSimdHWIntrinsicNode(retType, op1, op2, intrinsic, baseType, simdSize);
+            }
+            else
+            {
+                assert(sig->numArgs >= 3);
+
+                GenTreeArgList* tmp = nullptr;
+
+                for (unsigned i = 0; i < sig->numArgs; i++)
+                {
+                    tmp        = gtNewArgList(impPopStack().val);
+                    tmp->gtOp2 = op1;
+                    op1        = tmp;
+                }
+
+                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
+            }
+            break;
+        }
+
         case NI_Vector64_get_Count:
         case NI_Vector128_get_Count:
         {
@@ -336,7 +377,17 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
             retNode = countNode;
             break;
         }
+        case NI_Vector64_get_Zero:
+        case NI_Vector64_get_AllBitsSet:
+        case NI_Vector128_get_Zero:
+        case NI_Vector128_get_AllBitsSet:
+        {
+            assert(!sig->hasThis());
+            assert(numArgs == 0);
 
+            retNode = gtNewSimdHWIntrinsicNode(retType, intrinsic, baseType, simdSize);
+            break;
+        }
         default:
         {
             return nullptr;

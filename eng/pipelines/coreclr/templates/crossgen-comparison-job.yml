@@ -5,6 +5,7 @@ parameters:
   osSubgroup: ''
   container: ''
   helixQueues: ''
+  runtimeVariant: ''
   crossrootfsDir: ''
   stagedBuild: false
   variables: {}
@@ -30,6 +31,7 @@ jobs:
     osGroup: ${{ parameters.osGroup }}
     osSubgroup: ${{ parameters.osSubgroup }}
     stagedBuild: ${{ parameters.stagedBuild }}
+    runtimeVariant: ${{ parameters.runtimeVariant }}
     liveLibrariesBuildConfig: ${{ parameters.liveLibrariesBuildConfig }}
     helixType: 'test/crossgen-comparison/'
     pool: ${{ parameters.pool }}
@@ -72,7 +74,7 @@ jobs:
 
     # Test job depends on the corresponding build job
     dependsOn:
-    - ${{ format('coreclr_product_build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
+    - ${{ format('coreclr_{0}_product_build_{1}{2}_{3}_{4}', parameters.runtimeVariant, parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
     - ${{ if ne(parameters.liveLibrariesBuildConfig, '') }}:
       - ${{ format('libraries_build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.liveLibrariesBuildConfig) }}
 
@@ -101,7 +103,6 @@ jobs:
           artifactName: '$(librariesBuildArtifactName)'
           displayName: 'live-built libraries'
 
-
     # Populate Core_Root
     - script: $(coreClrRepoRootDir)build-test$(scriptExt) $(buildConfig) $(archType) $(crossArg) generatelayoutonly
       displayName: Populate Core_Root
@@ -123,6 +124,7 @@ jobs:
       inputs:
         scriptSource: 'filePath'
         scriptPath: $(coreClrRepoRoot)/tests/scripts/crossgen_comparison.py
+        pythonInterpreter: /usr/bin/python3
         ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
           arguments:
             crossgen_framework
@@ -138,7 +140,6 @@ jobs:
             --core_root  $(workItemDirectory)
             --result_dir $(workItemDirectory)\log\$(crossFlavor)
 
-
     # Dump contents and payload information
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: |
@@ -149,7 +150,6 @@ jobs:
       - script: |
           dir $(workItemDirectory)
         displayName: Dump contents and payload information
-
 
     # Send payload to Helix where the native output is generated and compared to the baseline
     - template: /eng/common/templates/steps/send-to-helix.yml
@@ -169,23 +169,23 @@ jobs:
           WorkItemCommand:
             chmod +x     $HELIX_WORKITEM_PAYLOAD/crossgen;
             mkdir -p     $HELIX_WORKITEM_PAYLOAD/log/$(targetFlavor);
-            python -u $HELIX_CORRELATION_PAYLOAD/crossgen_comparison.py crossgen_framework
+            python3 -u $HELIX_CORRELATION_PAYLOAD/crossgen_comparison.py crossgen_framework
             --crossgen   $HELIX_WORKITEM_PAYLOAD/crossgen
             --il_corelib $HELIX_WORKITEM_PAYLOAD/IL/System.Private.CoreLib.dll
             --core_root  $HELIX_WORKITEM_PAYLOAD
             --result_dir $HELIX_WORKITEM_PAYLOAD/log/$(targetFlavor);
-            python -u $HELIX_CORRELATION_PAYLOAD/crossgen_comparison.py compare
+            python3 -u $HELIX_CORRELATION_PAYLOAD/crossgen_comparison.py compare
             --base_dir   $HELIX_WORKITEM_PAYLOAD/log/$(crossFlavor)
             --diff_dir   $HELIX_WORKITEM_PAYLOAD/log/$(targetFlavor)
         ${{ if eq(parameters.osName, 'Windows_NT') }}:
           WorkItemCommand:
             mkdir        %HELIX_WORKITEM_PAYLOAD%\log\$(targetFlavor);
-            python -u %HELIX_CORRELATION_PAYLOAD%\crossgen_comparison.py crossgen_framework
+            python3 -u %HELIX_CORRELATION_PAYLOAD%\crossgen_comparison.py crossgen_framework
             --crossgen   %HELIX_WORKITEM_PAYLOAD%\crossgen
             --il_corelib %HELIX_WORKITEM_PAYLOAD%\IL\System.Private.CoreLib.dll
             --core_root  %HELIX_WORKITEM_PAYLOAD%
             --result_dir %HELIX_WORKITEM_PAYLOAD%\log\$(targetFlavor);
-            python -u %HELIX_CORRELATION_PAYLOAD%\crossgen_comparison.py compare
+            python3 -u %HELIX_CORRELATION_PAYLOAD%\crossgen_comparison.py compare
             --base_dir   %HELIX_WORKITEM_PAYLOAD%\log\$(crossFlavor)
             --diff_dir   %HELIX_WORKITEM_PAYLOAD%\log\$(targetFlavor)
 

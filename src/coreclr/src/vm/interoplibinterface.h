@@ -17,12 +17,13 @@ public: // Native QCalls for the abstract ComWrappers managed type.
         _Out_ void** fpAddRef,
         _Out_ void** fpRelease);
 
-    static void* QCALLTYPE GetOrCreateComInterfaceForObject(
+    static BOOL QCALLTYPE TryGetOrCreateComInterfaceForObject(
         _In_ QCall::ObjectHandleOnStack comWrappersImpl,
         _In_ QCall::ObjectHandleOnStack instance,
-        _In_ INT32 flags);
+        _In_ INT32 flags,
+        _Outptr_ void** wrapperRaw);
 
-    static void QCALLTYPE GetOrCreateObjectForComInstance(
+    static BOOL QCALLTYPE TryGetOrCreateObjectForComInstance(
         _In_ QCall::ObjectHandleOnStack comWrappersImpl,
         _In_ void* externalComObject,
         _In_ INT32 flags,
@@ -33,6 +34,50 @@ public: // Lifetime management for COM Wrappers
     static void DestroyManagedObjectComWrapper(_In_ void* wrapper);
     static void DestroyExternalComObjectContext(_In_ void* context);
     static void MarkExternalComObjectContextCollected(_In_ void* context);
+
+public: // COM activation
+    static void MarkWrapperAsComActivated(_In_ IUnknown* wrapperMaybe);
+
+public: // Unwrapping support
+    static IUnknown* GetIdentityForObject(_In_ OBJECTREF* objectPROTECTED, _In_ REFIID riid);
+};
+
+class GlobalComWrappersForMarshalling
+{
+public:
+    // Native QCall for the ComWrappers managed type to indicate a global instance
+    // is registered for marshalling. This should be set if the private static member
+    // representing the global instance for marshalling on ComWrappers is non-null.
+    static void QCALLTYPE SetGlobalInstanceRegisteredForMarshalling();
+
+public: // Functions operating on a registered global instance for marshalling
+    static bool TryGetOrCreateComInterfaceForObject(
+        _In_ OBJECTREF instance,
+        _Outptr_ void** wrapperRaw);
+
+    static bool TryGetOrCreateObjectForComInstance(
+        _In_ IUnknown* externalComObject,
+        _In_ INT32 objFromComIPFlags,
+        _Out_ OBJECTREF* objRef);
+};
+
+
+class GlobalComWrappersForTrackerSupport
+{
+public:
+    // Native QCall for the ComWrappers managed type to indicate a global instance
+    // is registered for tracker support. This should be set if the private static member
+    // representing the global instance for tracker support on ComWrappers is non-null.
+    static void QCALLTYPE SetGlobalInstanceRegisteredForTrackerSupport();
+
+public: // Functions operating on a registered global instance for tracker support
+    static bool TryGetOrCreateComInterfaceForObject(
+        _In_ OBJECTREF instance,
+        _Outptr_ void** wrapperRaw);
+
+    static bool TryGetOrCreateObjectForComInstance(
+        _In_ IUnknown* externalComObject,
+        _Out_ OBJECTREF* objRef);
 };
 
 #endif // FEATURE_COMWRAPPERS

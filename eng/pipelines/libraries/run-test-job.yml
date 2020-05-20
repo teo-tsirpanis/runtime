@@ -9,6 +9,7 @@ parameters:
   runtimeFlavor: 'coreclr'
   timeoutInMinutes: 150
   pool: ''
+  runtimeVariant: ''
   testScope: ''
   helixQueues: []
   dependsOnTestBuildConfiguration: Debug
@@ -27,10 +28,12 @@ jobs:
       isOfficialBuild: ${{ parameters.isOfficialBuild }}
       liveRuntimeBuildConfig: ${{ parameters.liveRuntimeBuildConfig }}
       runtimeFlavor: ${{ parameters.runtimeFlavor }}
+      runtimeVariant: ${{ parameters.runtimeVariant }}
       timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
       container: '' # we just send to helix, no need to use a container.
       condition: ${{ parameters.condition }}
       pool: ${{ parameters.pool }}
+      testScope: ${{ parameters.testScope }}
       ${{ if ne(parameters.liveRuntimeBuildConfig, '') }}:
         displayName: ${{ format('Test Run {0} {1}', parameters.liveRuntimeBuildConfig, parameters.runtimeFlavor) }}
         name: ${{ format('test_run_{0}_{1}', parameters.liveRuntimeBuildConfig, parameters.runtimeFlavor) }}
@@ -46,12 +49,11 @@ jobs:
         - ${{ format('libraries_build_{0}_{1}{2}_{3}_{4}', parameters.framework, parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
         - ${{ format('libraries_test_build_{0}_{1}_{2}_{3}', parameters.framework, parameters.osGroup, parameters.dependsOnTestArchitecture, parameters.dependsOnTestBuildConfiguration) }}
       - ${{ if ne(parameters.liveRuntimeBuildConfig, '') }}:
-        - ${{ format('{0}_product_build_{1}{2}_{3}_{4}', parameters.runtimeFlavor, parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.liveRuntimeBuildConfig) }}
+        - ${{ format('{0}_{1}_product_build_{2}{3}_{4}_{5}', parameters.runtimeFlavor, parameters.runtimeVariant, parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.liveRuntimeBuildConfig) }}
 
       variables:
         - librariesTestsArtifactName: ${{ format('libraries_test_assets_{0}_{1}_{2}', parameters.osGroup, parameters.dependsOnTestArchitecture, parameters.dependsOnTestBuildConfiguration) }}
         - _archiveTestsParameter: /p:ArchiveTests=true
-        - _skipTestRestoreArg: /p:SkipTestRestore=false
         - ${{ parameters.variables }}
 
       steps:
@@ -72,14 +74,12 @@ jobs:
             artifactFileName: $(librariesTestsArtifactName)$(archiveExtension)
 
         - ${{ if ne(parameters.liveRuntimeBuildConfig, '') }}:
-          - script: $(_msbuildCommand) src/libraries/restore/runtime/runtime.depproj 
-                    $(_runtimeArtifactsPathArg)
-                    $(_runtimeOSArg)
+          - script: $(_buildScript)
+                    -subset libs.pretest
+                    $(_buildArguments)
                     /p:RuntimeFlavor=${{ parameters.runtimeFlavor }}
-                    /p:ArchGroup=${{ parameters.archType }}
-                    /p:Configuration=${{ parameters.buildConfig }}
-                    /bl:$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)/overrideCoreclrFromLiveDrop.binlog
-            displayName: Override $(runtimeFlavorName) from live drop
+                    /bl:$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)/overrideRuntimeFromLiveDrop.binlog
+            displayName: Prepare TestHost with runtime $(runtimeFlavorName)
 
         - template: /eng/pipelines/libraries/helix.yml
           parameters:

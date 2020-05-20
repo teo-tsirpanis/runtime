@@ -12,17 +12,12 @@ namespace System.Text.Json.Serialization.Converters
     /// </summary>
     internal sealed class SmallObjectWithParameterizedConstructorConverter<T, TArg0, TArg1, TArg2, TArg3> : ObjectWithParameterizedConstructorConverter<T> where T : notnull
     {
-        private JsonClassInfo.ParameterizedConstructorDelegate<T, TArg0, TArg1, TArg2, TArg3>? _createObject;
-
-        internal override void CreateConstructorDelegate(JsonSerializerOptions options)
-        {
-            _createObject = options.MemberAccessorStrategy.CreateParameterizedConstructor<T, TArg0, TArg1, TArg2, TArg3>(ConstructorInfo)!;
-        }
-
         protected override object CreateObject(ref ReadStackFrame frame)
         {
-            var arguments = (Arguments<TArg0, TArg1, TArg2, TArg3>)frame.CtorArgumentState!.Arguments!;
-            return _createObject!(arguments.Arg0, arguments.Arg1, arguments.Arg2, arguments.Arg3)!;
+            var createObject = (JsonClassInfo.ParameterizedConstructorDelegate<T, TArg0, TArg1, TArg2, TArg3>)
+                frame.JsonClassInfo.CreateObjectWithArgs!;
+            var arguments = (Arguments<TArg0, TArg1, TArg2, TArg3>)frame.CtorArgumentState!.Arguments;
+            return createObject!(arguments.Arg0, arguments.Arg1, arguments.Arg2, arguments.Arg3);
         }
 
         protected override bool ReadAndCacheConstructorArgument(ref ReadStack state, ref Utf8JsonReader reader, JsonParameterInfo jsonParameterInfo)
@@ -38,32 +33,32 @@ namespace System.Text.Json.Serialization.Converters
                     success = ((JsonParameterInfo<TArg0>)jsonParameterInfo).ReadJsonTyped(ref state, ref reader, out TArg0 arg0);
                     if (success)
                     {
-                        arguments.Arg0 = arg0;
+                        arguments.Arg0 = arg0!;
                     }
                     break;
                 case 1:
                     success = ((JsonParameterInfo<TArg1>)jsonParameterInfo).ReadJsonTyped(ref state, ref reader, out TArg1 arg1);
                     if (success)
                     {
-                        arguments.Arg1 = arg1;
+                        arguments.Arg1 = arg1!;
                     }
                     break;
                 case 2:
                     success = ((JsonParameterInfo<TArg2>)jsonParameterInfo).ReadJsonTyped(ref state, ref reader, out TArg2 arg2);
                     if (success)
                     {
-                        arguments.Arg2 = arg2;
+                        arguments.Arg2 = arg2!;
                     }
                     break;
                 case 3:
                     success = ((JsonParameterInfo<TArg3>)jsonParameterInfo).ReadJsonTyped(ref state, ref reader, out TArg3 arg3);
                     if (success)
                     {
-                        arguments.Arg3 = arg3;
+                        arguments.Arg3 = arg3!;
                     }
                     break;
                 default:
-                    Debug.Fail("This should never happen.");
+                    Debug.Fail("More than 4 params: we should be in override for LargeObjectWithParameterizedConstructorConverter.");
                     throw new InvalidOperationException();
             }
 
@@ -72,9 +67,17 @@ namespace System.Text.Json.Serialization.Converters
 
         protected override void InitializeConstructorArgumentCaches(ref ReadStack state, JsonSerializerOptions options)
         {
+            JsonClassInfo classInfo = state.Current.JsonClassInfo;
+
+            if (classInfo.CreateObjectWithArgs == null)
+            {
+                classInfo.CreateObjectWithArgs =
+                    options.MemberAccessorStrategy.CreateParameterizedConstructor<T, TArg0, TArg1, TArg2, TArg3>(ConstructorInfo!);
+            }
+
             var arguments = new Arguments<TArg0, TArg1, TArg2, TArg3>();
 
-            foreach (JsonParameterInfo parameterInfo in state.Current.JsonClassInfo.ParameterCache!.Values)
+            foreach (JsonParameterInfo parameterInfo in classInfo.ParameterCache!.Values)
             {
                 if (parameterInfo.ShouldDeserialize)
                 {
@@ -95,8 +98,8 @@ namespace System.Text.Json.Serialization.Converters
                             arguments.Arg3 = ((JsonParameterInfo<TArg3>)parameterInfo).TypedDefaultValue!;
                             break;
                         default:
-                            Debug.Fail("We should never get here.");
-                            break;
+                            Debug.Fail("More than 4 params: we should be in override for LargeObjectWithParameterizedConstructorConverter.");
+                            throw new InvalidOperationException();
                     }
                 }
             }

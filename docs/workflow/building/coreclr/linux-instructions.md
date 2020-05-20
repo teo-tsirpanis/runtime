@@ -19,7 +19,7 @@ Please note that when choosing an image choosing the same image as the host os y
 Once you have chosen an image the build is one command run from the root of the runtime repository:
 
 ```sh
-docker run --rm -v <RUNTIME_REPO_PATH>:/runtime -w /runtime mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-a50a721-20191120200116 ./src/coreclr/build.sh -clang9
+docker run --rm -v <RUNTIME_REPO_PATH>:/runtime -w /runtime mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-20200508132555-78cbb55 ./build.sh --subset clr -clang9
 ```
 
 Dissecting the command:
@@ -30,16 +30,18 @@ Dissecting the command:
 
 `-w: /runtime`: set /runtime as working directory for the container
 
-`mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-a50a721-20191120200116`: image name.
+`mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-20200508132555-78cbb55`: image name.
 
-`./src/coreclr/build.sh`: command to be run in the container, run the build to coreclr.
+`./build.sh`: command to be run in the container, run the build to coreclr.
+
+`--subset clr`: build the runtime subset (excluding libraries and installers)
 
 `-clang9`: argument to use clang 9 for the build, only compiler in the build image.
 
-If you are attempting to cross build for arm/arm64 then use the crossrootfs location to set the ROOTFS_DIR. The command would add `-e ROOTFS_DIR=<crossrootfs location>`. See [Docker Images](#Docker-Images) for the crossrootfs location. In addition you will need to specify `cross`.
+If you are attempting to cross build for arm/arm64 then use the crossrootfs location to set the ROOTFS_DIR. The command would add `-e ROOTFS_DIR=<crossrootfs location>`. See [Docker Images](#Docker-Images) for the crossrootfs location. In addition you will need to specify `--cross`.
 
 ```sh
-docker run --rm -v <RUNTIME_REPO_PATH>:/runtime -w /runtime -e ROOTFS_DIR=/crossrootfs/arm64 mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-cfdd435-20191023143847 ./src/coreclr/build.sh arm64 cross
+docker run --rm -v <RUNTIME_REPO_PATH>:/runtime -w /runtime -e ROOTFS_DIR=/crossrootfs/arm64 mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-20200508132638-b2c2436 ./build.sh --arch arm64 --cross --subset clr
 ```
 
 Note that instructions on building the crossrootfs location can be found at [cross-building.md](cross-building.md). These instructions are suggested only if there are plans to change the rootfs, or the Docker images for arm/arm64 are insufficient for you build.
@@ -55,9 +57,9 @@ These instructions might fall stale often enough as we change our images as our 
 | Alpine                      | x64             | `mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-WithNode-0fc54a3-20190918214015`             | -                    | -clang9       |
 | CentOS 6 (build for RHEL 6) | x64             | `mcr.microsoft.com/dotnet-buildtools/prereqs:centos-6-f39df28-20191023143802`                        | -                    | -clang9       |
 | CentOS 7 (build for RHEL 7) | x64             | `mcr.microsoft.com/dotnet-buildtools/prereqs:centos-7-f39df28-20191023143754`                        | -                    | -clang9       |
-| Ubuntu 16.04                | arm32(armhf)    | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-14.04-23cacb0-20191023143847`        | `/crossrootfs/arm`   | -clang9       |
-| Ubuntu 16.04                | arm64 (arm64v8) | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-cfdd435-20191023143847`        | `/crossrootfs/arm64` | -clang9       |
-| Alpine                      | arm64 (arm64v8) | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-alpine-406629a-20191023143847` | `/crossrootfs/arm64` | -clang5.0     |
+| Ubuntu 16.04                | arm32(armhf)    | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-20200413125008-09ec757`              | `/crossrootfs/arm`   | -clang9       |
+| Ubuntu 16.04                | arm64 (arm64v8) | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-20200413125008-cfdd435`        | `/crossrootfs/arm64` | -clang9       |
+| Alpine                      | arm64 (arm64v8) | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-alpine-20200413125008-406629a` | `/crossrootfs/arm64` | -clang5.0     |
 
 Environment
 ===========
@@ -127,10 +129,10 @@ Build the Runtime and System.Private.CoreLib
 To build the runtime on Linux, run build.sh to build the CoreCLR subset category of the runtime:
 
 ```
-./build.sh -subsetCategory coreclr
+./build.sh -subset clr
 ```
 
-After the build is completed, there should some files placed in `runtime/artifacts/bin/coreclr/Linux.x64.Debug`.  The ones we are most interested in are:
+After the build is completed, there should some files placed in `artifacts/bin/coreclr/Linux.x64.Debug`.  The ones we are most interested in are:
 
 * `corerun`: The command line host.  This program loads and starts the CoreCLR runtime and passes the managed program you want to run to it.
 * `libcoreclr.so`: The CoreCLR runtime itself.

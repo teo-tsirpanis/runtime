@@ -596,7 +596,7 @@ netcore_resolve_with_dll_import_resolver_nofail (MonoAssemblyLoadContext *alc, M
 
 	result = netcore_resolve_with_dll_import_resolver (alc, assembly, scope, flags, error);
 	if (!is_ok (error))
-		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_ASSEMBLY, "Error while invoking ALC DllImportResolver(\"%s\") delegate: '%s'", scope, mono_error_get_message (error));
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_DLLIMPORT, "Error while invoking ALC DllImportResolver(\"%s\") delegate: '%s'", scope, mono_error_get_message (error));
 
 	mono_error_cleanup (error);
 
@@ -652,7 +652,7 @@ netcore_resolve_with_load_nofail (MonoAssemblyLoadContext *alc, const char *scop
 
 	result = netcore_resolve_with_load (alc, scope, error);
 	if (!is_ok (error))
-		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_ASSEMBLY, "Error while invoking ALC LoadUnmanagedDll(\"%s\") method: '%s'", scope, mono_error_get_message (error));
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_DLLIMPORT, "Error while invoking ALC LoadUnmanagedDll(\"%s\") method: '%s'", scope, mono_error_get_message (error));
 
 	mono_error_cleanup (error);
 
@@ -712,7 +712,7 @@ netcore_resolve_with_resolving_event_nofail (MonoAssemblyLoadContext *alc, MonoA
 
 	result = netcore_resolve_with_resolving_event (alc, assembly, scope, error);
 	if (!is_ok (error))
-		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_ASSEMBLY, "Error while invoking ALC ResolvingUnmangedDll(\"%s\") event: '%s'", scope, mono_error_get_message (error));
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_DLLIMPORT, "Error while invoking ALC ResolvingUnmangedDll(\"%s\") event: '%s'", scope, mono_error_get_message (error));
 
 	mono_error_cleanup (error);
 
@@ -758,7 +758,7 @@ netcore_lookup_native_library (MonoAssemblyLoadContext *alc, MonoImage *image, c
 	// We allow a special name to dlopen from the running process namespace, which is not present in CoreCLR
 	if (strcmp (scope, "__Internal") == 0) {
 		if (!internal_module)
-			internal_module = mono_dl_open (NULL, MONO_DL_LAZY, &error_msg);
+			internal_module = mono_dl_open_self (&error_msg);
 		module = internal_module;
 
 		if (!module) {
@@ -1240,6 +1240,9 @@ lookup_pinvoke_call_impl (MonoMethod *method, MonoLookupPInvokeStatus *status_ou
 #endif
 
 #ifdef ENABLE_NETCORE
+#ifndef HOST_WIN32
+retry_with_libcoreclr:
+#endif
 	// FIXME: these flags are not getting passed correctly
 	module = netcore_lookup_native_library (alc, image, new_scope, 0);
 #else
@@ -1262,6 +1265,21 @@ lookup_pinvoke_call_impl (MonoMethod *method, MonoLookupPInvokeStatus *status_ou
 	addr = pinvoke_probe_for_symbol (module, piinfo, new_import, &error_msg);
 
 	if (!addr) {
+#if defined(ENABLE_NETCORE) && !defined(HOST_WIN32)
+		if (strcmp (new_scope, "__Internal") == 0) {
+			g_free ((char *)new_scope);
+#if defined(TARGET_OSX)
+			new_scope = g_strdup ("libcoreclr.dylib");
+#else			
+#if defined(TARGET_ANDROID)
+			new_scope = g_strdup ("libmonosgen-2.0.so");
+#else
+			new_scope = g_strdup ("libcoreclr.so");
+#endif
+#endif			
+			goto retry_with_libcoreclr;
+		}
+#endif		
 		status_out->err_code = LOOKUP_PINVOKE_ERR_NO_SYM;
 		status_out->err_arg = g_strdup (new_import);
 		goto exit;
@@ -1296,6 +1314,7 @@ pinvoke_probe_for_symbol (MonoDl *module, MonoMethodPInvoke *piinfo, const char 
 	mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_DLLIMPORT,
 				"Searching for '%s'.", import);
 
+#if !defined(ENABLE_NETCORE) || defined(HOST_WIN32) // For netcore, name mangling is Windows-exclusive
 	if (piinfo->piflags & PINVOKE_ATTRIBUTE_NO_MANGLE)
 		error_msg = mono_dl_symbol (module, import, &addr);
 	else {
@@ -1380,6 +1399,9 @@ pinvoke_probe_for_symbol (MonoDl *module, MonoMethodPInvoke *piinfo, const char 
 			}
 		}
 	}
+#else
+	error_msg = mono_dl_symbol (module, import, &addr);
+#endif
 
 	*error_msg_out = error_msg;
 	return addr;

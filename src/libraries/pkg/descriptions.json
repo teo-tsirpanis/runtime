@@ -89,6 +89,13 @@
     "CommonTypes": []
   },
   {
+    "Name": "Microsoft.Extensions.DependencyModel",
+    "Description": "Abstractions for reading `.deps` files.",
+    "CommonTypes": [
+        "Microsoft.Extensions.DependencyModel.DependencyContext"
+    ]
+  },
+  {
     "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
     "Description": "Abstractions for dependency injection.",
     "CommonTypes": [
@@ -121,12 +128,12 @@
   },
   {
     "Name": "Microsoft.Extensions.Hosting",
-    "Description": ".NET Core hosting and startup infrastructures for applications.",
+    "Description": "Hosting and startup infrastructures for applications.",
     "CommonTypes": []
   },
   {
     "Name": "Microsoft.Extensions.Hosting.Abstractions",
-    "Description": ".NET Core hosting and startup abstractions for applications.",
+    "Description": "Hosting and startup abstractions for applications.",
     "CommonTypes": []
   },
   {
@@ -200,6 +207,11 @@
     "CommonTypes": []
   },
   {
+    "Name": "Microsoft.Extensions.Internal.Transport",
+    "Description": "Internal transport package to provide aspnetcore with the assemblies that make up the Microsoft.ASPNetCore.App shared framework.",
+    "CommonTypes": []
+  },
+  {
     "Name": "Microsoft.Extensions.Primitives",
     "Description": "Primitives shared by framework extensions. Commonly used types include:",
     "CommonTypes": [
@@ -249,11 +261,6 @@
     "CommonTypes": []
   },
   {
-    "Name": "Microsoft.NETCore.Platforms.Future",
-    "Description": "Provides runtime information required to resolve target framework, platform, and runtime specific implementations of .NETCore packages.  This package represents future platforms not yet supported in .NETCore stable release and is subject to change.",
-    "CommonTypes": []
-  },
-  {
     "Name": "Microsoft.NETCore.Portable.Compatibility",
     "Description": "Enables compatibility with portable libraries targeting previous .NET releases like .NET Framework 4.0 and Silverlight.\nThis package supports retargeting references to classic reference assemblies (mscorlib.dll, system.dll, etc) to new contract assemblies (System.Runtime.dll, System.IO, etc).  It does this in a pay-for-play way to prevent consuming assemblies from having to reference all of the contracts that happen to overlap with mscorlib.  As such, when using this package you may encounter errors like\n\terror CS0012: The type 'WebRequest' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Net.Requests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.\nTo resolve these errors install the package with the same name as the missing assembly.",
     "CommonTypes": []
@@ -270,7 +277,7 @@
   },
   {
     "Name": "Microsoft.NETCore.Runtime",
-    "Description": "The .NET Core runtime.",
+    "Description": "The .NET runtime.",
     "CommonTypes": []
   },
   {
@@ -338,7 +345,7 @@
   },
   {
     "Name": "Microsoft.XmlSerializer.Generator",
-    "Description": "Like the Xml Serializer Generator (sgen.exe) on desktop, Microsoft.XmlSerializer.Generator NuGet package is the solution for .NET Core and .NET Standard Libraries. It creates an Xml serialization assembly for types contained in an assembly in order to improve the startup performance of Xml serialization when serializing or de-serializing objects of those types using XmlSerializer.",
+    "Description": "Creates an Xml serialization assembly for types contained in an assembly in order to improve the startup performance of Xml serialization when serializing or de-serializing objects of those types using XmlSerializer.",
     "CommonTypes": []
   },
   {
@@ -889,7 +896,7 @@
   },
   {
     "Name": "System.Drawing.Primitives",
-    "Description": "Provides basic drawing primitive structures, that exposes the corresponding System.Drawing.dll types in .NET Core.",
+    "Description": "Provides basic drawing primitive structures.",
     "CommonTypes": [
       "System.Drawing.Color",
       "System.Drawing.Point",
@@ -1227,6 +1234,15 @@
     "Description": "Provides a simple, programmatically controlled HTTP protocol listener.",
     "CommonTypes": [
       "System.Net.HttpListener"
+    ]
+  },
+  {
+    "Name": "System.Net.Http.Json",
+    "Description": "Provides extension methods for System.Net.Http.HttpClient and System.Net.Http.HttpContent that perform automatic serialization and deserialization using System.Text.Json.",
+    "CommonTypes": [
+      "System.Net.Http.Json.HttpClientJsonExtensions",
+      "System.Net.Http.Json.HttpContentJsonExtensions",
+      "System.Net.Http.Json.JsonContent"
     ]
   },
   {
